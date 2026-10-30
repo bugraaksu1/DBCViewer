@@ -1,0 +1,897 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DBC → Excel Converter</title>
+<style>
+:root{
+  --bg:#0d141c;--panel:#141f2b;--panel2:#1a2836;--line:#263849;--line2:#31475c;
+  --text:#e4ebf2;--muted:#8a9fb4;--dim:#5f7489;
+  --acc:#22a39a;--acc2:#3fd0c3;--accbg:rgba(34,163,154,.14);
+  --warn:#e2a23b;--err:#e5534b;--ok:#3fb950;
+  --mono:ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",Menlo,monospace;
+  --sans:"Segoe UI",system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font:13px/1.45 var(--sans)}
+button,select,input{font:inherit;color:inherit}
+.top{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 22px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#111b26,#0d141c)}
+.brand{display:flex;align-items:center;gap:12px}
+.logo{width:42px;height:42px;border-radius:9px;display:grid;place-items:center;font:700 12px var(--mono);letter-spacing:.5px;background:var(--accbg);color:var(--acc2);border:1px solid rgba(63,208,195,.35)}
+h1{margin:0;font-size:17px;font-weight:650;letter-spacing:.2px}
+.top p{margin:2px 0 0;color:var(--muted);font-size:12px}
+.hctl{display:flex;align-items:center;gap:12px}
+.fld{display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.fld select{background:var(--panel2);border:1px solid var(--line2);border-radius:6px;padding:6px 8px;min-width:150px;text-transform:none;letter-spacing:0;font-size:13px;color:var(--text)}
+.seg{display:flex;border:1px solid var(--line2);border-radius:7px;overflow:hidden}
+.seg button{background:transparent;border:0;padding:7px 12px;cursor:pointer;color:var(--muted);font-weight:600}
+.seg button.on{background:var(--acc);color:#04201d}
+main{padding:18px 22px 40px;max-width:1600px;margin:0 auto}
+.drop{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;border:1.5px dashed var(--line2);border-radius:12px;padding:38px 20px;background:var(--panel);cursor:pointer;text-align:center;transition:.15s}
+.drop:hover,.drop.over{border-color:var(--acc2);background:var(--accbg)}
+.drop .dicon{font-size:26px;color:var(--acc2)}
+.drop span{color:var(--muted);font-size:12px}
+.drop.compact{flex-direction:row;padding:10px 14px;gap:10px;justify-content:flex-start}
+.drop.compact .dicon{font-size:16px}
+.bar{display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px;margin-top:14px;padding:12px 14px;background:var(--panel);border:1px solid var(--line);border-radius:10px}
+.bar .sp{flex:1}
+.btn{background:var(--panel2);border:1px solid var(--line2);border-radius:7px;padding:8px 14px;cursor:pointer;font-weight:600;white-space:nowrap}
+.btn:hover{border-color:var(--acc2)}
+.btn.pri{background:var(--acc);border-color:var(--acc);color:#04201d}
+.btn.pri:hover{background:var(--acc2)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.sheets{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.chk{display:flex;align-items:center;gap:6px;padding:5px 10px;border:1px solid var(--line);border-radius:20px;background:var(--panel);cursor:pointer;font-size:12px;color:var(--muted);user-select:none}
+.chk input{accent-color:var(--acc);margin:0}
+.chk.on{color:var(--text);border-color:rgba(63,208,195,.45)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-top:12px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 14px}
+.card b{display:block;font:650 20px var(--mono);color:var(--acc2)}
+.card span{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.card.w b{color:var(--warn)}
+.warn{margin-top:12px;background:rgba(226,162,59,.07);border:1px solid rgba(226,162,59,.35);border-radius:10px;padding:8px 14px}
+.warn summary{cursor:pointer;color:var(--warn);font-weight:600}
+.warn ul{margin:8px 0 2px;padding-left:18px;max-height:180px;overflow:auto;font-family:var(--mono);font-size:12px;color:#d8c39a}
+.split{display:grid;grid-template-columns:330px 1fr;gap:14px;margin-top:14px;align-items:start}
+.list{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden;position:sticky;top:10px}
+.list input{width:100%;border:0;border-bottom:1px solid var(--line);background:var(--panel2);padding:10px 12px;outline:none}
+#mlist{max-height:calc(100vh - 120px);overflow:auto}
+.mi{padding:8px 12px;border-bottom:1px solid var(--line);cursor:pointer;border-left:3px solid transparent}
+.mi:hover{background:var(--panel2)}
+.mi.sel{background:var(--accbg);border-left-color:var(--acc2)}
+.mn{font-weight:600;word-break:break-all}
+.mm{display:flex;flex-wrap:wrap;gap:8px;margin-top:2px;font:11px var(--mono);color:var(--muted)}
+.mm .id{color:var(--acc2)}
+.tag{padding:0 5px;border-radius:4px;font:600 10px var(--mono);border:1px solid}
+.tag.fd{color:#c9a2ff;border-color:#7a5bb0}
+.tag.ex{color:#f0b46a;border-color:#a7743a}
+.tag.tx{color:#7ee2a8;border-color:#3b8a5c}
+.tag.rx{color:#8ec5ff;border-color:#3d6c9e}
+.detail{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 18px;min-height:300px;min-width:0}
+.empty{color:var(--dim);display:grid;place-items:center;height:260px;text-align:center}
+.dh{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px}
+.dh h2{margin:0;font-size:18px;word-break:break-all}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.chip{background:var(--panel2);border:1px solid var(--line2);border-radius:6px;padding:3px 8px;font-size:12px}
+.chip i{font-style:normal;color:var(--muted);margin-right:5px}
+.chip b{font-family:var(--mono);font-weight:600}
+.cmt{margin:10px 0 0;color:var(--muted);white-space:pre-wrap;font-size:12px;border-left:2px solid var(--line2);padding-left:10px}
+h3{margin:18px 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:.7px;color:var(--muted)}
+.bmwrap{overflow:auto}
+table.bm{border-collapse:separate;border-spacing:2px;font:10px var(--mono)}
+table.bm th{color:var(--muted);font-weight:500;padding:2px 4px}
+table.bm td{width:92px;min-width:92px;height:26px;border-radius:4px;background:#1d2b3a;color:#17202b;text-align:center;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;max-width:92px;padding:0 4px;position:relative;transition:opacity .12s}
+table.bm td.bn{background:transparent;color:var(--muted);width:40px;min-width:40px}
+table.bm td.msb{font-weight:700}
+table.bm td.lsb::after{content:"";position:absolute;right:3px;bottom:3px;width:5px;height:5px;border-radius:50%;background:rgba(0,0,0,.45)}
+table.bm td.ov{outline:2px solid var(--err);outline-offset:-2px}
+table.bm.focus td[data-s]:not(.hi){opacity:.22}
+.legend{font-size:11px;color:var(--muted);margin-top:6px}
+.tw{overflow:auto;border:1px solid var(--line);border-radius:8px}
+table.st{border-collapse:collapse;width:100%;font-size:12px}
+table.st th{position:sticky;top:0;background:var(--panel2);text-align:left;font-weight:600;color:var(--muted);padding:7px 8px;border-bottom:1px solid var(--line2);white-space:nowrap;font-size:11px}
+table.st td{padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+table.st td.n{font-family:var(--mono);text-align:right;white-space:nowrap}
+table.st tr{cursor:pointer}
+table.st tr:hover td{background:rgba(255,255,255,.025)}
+table.st tr.hi td{background:var(--accbg)}
+.dot{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:7px;vertical-align:-1px}
+.vals{color:var(--muted);font-size:11px;max-width:260px;white-space:pre-line}
+.fld input{background:var(--panel2);border:1px solid var(--line2);border-radius:6px;padding:6px 8px;width:130px;font-size:13px;color:var(--text);text-transform:none;letter-spacing:0;font-family:var(--mono)}
+.fld input:disabled,.chk.dis{opacity:.4}
+.bl{margin-top:12px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 16px 16px}
+.blh{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px}
+.blh h3{margin:0 0 6px}
+.blin{display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px}
+.blin .chk{margin-bottom:2px}
+.blsum{display:grid;grid-template-columns:minmax(260px,1.2fr) 1fr 1fr;gap:16px;margin-top:14px;align-items:start}
+.big{font:650 26px var(--mono)}
+.big small{font-size:13px;color:var(--muted);font-weight:500;margin-left:6px}
+.gauge{position:relative;height:14px;border-radius:7px;background:var(--panel2);border:1px solid var(--line2);margin:10px 0 4px;overflow:hidden}
+.gauge .rng{position:absolute;top:0;bottom:0;left:0;opacity:.35}
+.gauge .val{position:absolute;top:0;bottom:0;left:0}
+.gauge .thr{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--text);opacity:.7}
+.gscale{display:flex;justify-content:space-between;font:10px var(--mono);color:var(--dim)}
+.blnote{font-size:11px;color:var(--muted);margin-top:8px}
+.mini{width:100%;border-collapse:collapse;font-size:12px}
+.mini th{text-align:left;color:var(--muted);font-weight:600;font-size:11px;padding:4px 6px;border-bottom:1px solid var(--line2)}
+.mini td{padding:4px 6px;border-bottom:1px solid var(--line)}
+.mini td.n{text-align:right;font-family:var(--mono);white-space:nowrap}
+.bar1{height:6px;border-radius:3px;background:var(--acc);min-width:1px}
+@media (max-width:1100px){.blsum{grid-template-columns:1fr}}
+#toast{position:fixed;right:20px;bottom:20px;background:var(--panel2);border:1px solid var(--acc);color:var(--text);padding:10px 16px;border-radius:8px;opacity:0;transform:translateY(8px);transition:.2s;pointer-events:none;max-width:420px}
+#toast.on{opacity:1;transform:none}
+#toast.err{border-color:var(--err)}
+@media (max-width:900px){.split{grid-template-columns:1fr}.list{position:static}#mlist{max-height:320px}.top{flex-wrap:wrap}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <div class="logo">DBC</div>
+    <div><h1 data-i="title"></h1><p data-i="sub"></p></div>
+  </div>
+  <div class="hctl">
+    <label class="fld"><span data-i="enc"></span>
+      <select id="enc">
+        <option value="auto" data-i="encAuto"></option>
+        <option value="utf-8">UTF-8</option>
+        <option value="windows-1254">Windows-1254 (TR)</option>
+        <option value="windows-1252">Windows-1252</option>
+      </select>
+    </label>
+    <div class="seg" id="lang"><button data-l="tr">TR</button><button data-l="en">EN</button></div>
+  </div>
+</header>
+
+<main>
+  <label id="drop" class="drop">
+    <input type="file" id="fi" accept=".dbc,.DBC" multiple hidden>
+    <div class="dicon">⇪</div>
+    <b data-i="drop"></b>
+    <span data-i="dropHint"></span>
+  </label>
+
+  <section id="work" hidden>
+    <div class="bar">
+      <label class="fld"><span data-i="file"></span><select id="fsel"></select></label>
+      <label class="fld"><span data-i="scope"></span><select id="nsel"></select></label>
+      <label class="fld"><span data-i="dir"></span>
+        <select id="msel"><option value="all" data-i="dirAll"></option><option value="tx">TX</option><option value="rx">RX</option></select>
+      </label>
+      <div class="sp"></div>
+      <button id="bExp" class="btn pri" data-i="exp"></button>
+      <button id="bBatchN" class="btn" data-i="batchN"></button>
+      <button id="bBatchF" class="btn" data-i="batchF"></button>
+    </div>
+    <div class="sheets" id="sheets"></div>
+    <div class="stats" id="stats"></div>
+    <details id="warnBox" class="warn" hidden><summary></summary><ul></ul></details>
+    <section class="bl">
+      <div class="blh">
+        <h3 data-i="blT"></h3>
+        <div class="blin">
+          <label class="fld"><span data-i="blNom"></span><input id="bNom" type="number" min="1" step="1" value="500"></label>
+          <label class="fld"><span data-i="blData"></span><input id="bData" type="number" min="1" step="1" value="2000"></label>
+          <label class="chk on"><input type="checkbox" id="bBrs" checked><span data-i="blBrs"></span></label>
+          <label class="fld"><span data-i="blEvt"></span><input id="bEvt" type="number" min="0" step="1" value="0"></label>
+          <label class="fld"><span data-i="blThr"></span><input id="bThr" type="number" min="1" max="100" step="1" value="50"></label>
+        </div>
+      </div>
+      <div id="blOut"></div>
+    </section>
+    <div class="split">
+      <aside class="list"><input id="q" type="search" data-ip="search"><div id="mlist"></div></aside>
+      <section class="detail" id="detail"></section>
+    </div>
+  </section>
+</main>
+<div id="toast"></div>
+
+<script id="core">
+/* ================= CORE: DBC parser + XLSX writer (no dependencies) ================= */
+const PALETTE=['FDE2E4','D9EAD3','DDEBF7','FFF2CC','E4DFEC','FCE4D6','D0E0E3','F4CCCC','CFE2F3','EAD1DC','E2EFDA','FFE599'];
+const STMT_RE=/^(CM_|BA_DEF_DEF_REL_|BA_DEF_REL_|BA_REL_|BA_DEF_DEF_|BA_DEF_SGTYPE_|BA_SGTYPE_|BA_DEF_|BA_|VAL_TABLE_|VAL_|SIG_VALTYPE_|BO_TX_BU_|SIG_GROUP_|EV_|ENVVAR_DATA_|SGTYPE_VAL_|SGTYPE_|SIG_TYPE_REF_|CAT_DEF_|CAT_|FILTER|BU_SG_REL_|BU_EV_REL_|BU_BO_REL_|SG_MUL_VAL_)(?![A-Za-z0-9_])/;
+const SG_RE=/^SG_\s+(\w+)\s*(M|m\d+M?)?\s*:\s*(\d+)\s*\|\s*(\d+)\s*@\s*([01])\s*([+-])\s*\(\s*([^,]*?)\s*,\s*([^)]*?)\s*\)\s*\[\s*([^|\]]*?)\s*\|\s*([^\]]*?)\s*\]\s*"((?:[^"\\]|\\.)*)"\s*(.*)$/;
+
+function unesc(s){return String(s).replace(/\\"/g,'"').replace(/\\\\/g,'\\');}
+function num(x){const n=Number(x);return (x===''||isNaN(n))?x:n;}
+function pv(v){v=String(v).trim();const q=v.match(/^"([\s\S]*)"$/);if(q)return unesc(q[1]);const n=Number(v);return (v===''||isNaN(n))?v:n;}
+function pairs(str){return [...String(str).matchAll(/(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)\s+"((?:[^"\\]|\\.)*)"/g)].map(x=>[Number(x[1]),unesc(x[2])]);}
+function stmtEnd(s){let q=false;for(let k=0;k<s.length;k++){const c=s[k];if(q&&c==='\\'){k++;continue;}if(c==='"')q=!q;else if(c===';'&&!q)return k;}return -1;}
+function sigOf(db,id,name){const o=db.byId.get(Number(id));return o?o.sigMap[name]:null;}
+function clean(n){return typeof n==='number'&&isFinite(n)?+n.toPrecision(12):n;}
+
+function sigBits(s){ // returns absolute bit indices, MSB first
+  const bits=[];
+  if(s.intel){for(let k=s.len-1;k>=0;k--)bits.push(s.start+k);}
+  else{let p=s.start;for(let k=0;k<s.len;k++){bits.push(p);p=(p%8===0)?p+15:p-1;}}
+  return bits;
+}
+
+function parseDBC(text,fileName){
+  const db={fileName,version:'',nodes:[],nodeComments:{},nodeAttrs:{},messages:[],byId:new Map(),
+    valueTables:{},attrDefs:{},attrDefaults:{},netAttrs:{},netComment:'',warnings:[]};
+  const lines=String(text).replace(/^\uFEFF/,'').replace(/\r\n?/g,'\n').split('\n');
+  let cur=null,i=0,m;
+  while(i<lines.length){
+    const ln=i+1,line=lines[i].trim();i++;
+    if(!line||line.startsWith('//'))continue;
+    if(/^NS_\s*:/.test(line)){while(i<lines.length&&(/^\s/.test(lines[i])||!lines[i].trim()))i++;cur=null;continue;}
+    if((m=line.match(/^VERSION\s+"([^"]*)"/))){db.version=m[1];continue;}
+    if(/^BS_\s*:/.test(line))continue;
+    if((m=line.match(/^BU_\s*:(.*)$/))){db.nodes=m[1].trim().split(/\s+/).filter(Boolean);cur=null;continue;}
+    if((m=line.match(/^BO_\s+(\d+)\s+(\w+)\s*:\s*(\d+)\s+(\w+)/))){
+      const raw=Number(m[1]),ext=raw>=0x80000000,id=ext?raw-0x80000000:raw;
+      cur={raw,id,ext,name:m[2],len:Number(m[3]),tx:m[4]==='Vector__XXX'?'':m[4],txExtra:[],signals:[],sigMap:{},comment:'',attrs:{},
+        pseudo:m[2]==='VECTOR__INDEPENDENT_SIG_MSG'||raw===0xC0000000};
+      db.messages.push(cur);db.byId.set(raw,cur);continue;
+    }
+    if((m=line.match(SG_RE))){
+      if(!cur){db.warnings.push({k:'wNoBo',t:'L'+ln});continue;}
+      const mux=m[2]||'',mv=mux.match(/^m(\d+)/);
+      const s={name:m[1],mux,isMuxor:mux.endsWith('M'),muxVal:mv?Number(mv[1]):null,start:Number(m[3]),len:Number(m[4]),
+        intel:m[5]==='1',signed:m[6]==='-',factor:num(m[7]),offset:num(m[8]),min:num(m[9]),max:num(m[10]),unit:unesc(m[11]),
+        rx:m[12].split(/[\s,]+/).filter(x=>x&&x!=='Vector__XXX'),values:null,comment:'',attrs:{},valType:0};
+      cur.signals.push(s);cur.sigMap[s.name]=s;continue;
+    }
+    if(STMT_RE.test(line)){
+      cur=null;let buf=line,end;
+      while((end=stmtEnd(buf))<0&&i<lines.length){buf+='\n'+lines[i];i++;}
+      try{handleStmt(db,(end<0?buf:buf.slice(0,end)).trim());}catch(e){db.warnings.push({k:'wParse',t:'L'+ln+' '+e.message});}
+      continue;
+    }
+  }
+  postProcess(db);
+  return db;
+}
+
+function handleStmt(db,s){
+  let m;
+  if(s.startsWith('CM_')){
+    if((m=s.match(/^CM_\s+BU_\s+(\w+)\s+"([\s\S]*)"$/)))db.nodeComments[m[1]]=unesc(m[2]);
+    else if((m=s.match(/^CM_\s+BO_\s+(\d+)\s+"([\s\S]*)"$/))){const o=db.byId.get(Number(m[1]));if(o)o.comment=unesc(m[2]);}
+    else if((m=s.match(/^CM_\s+SG_\s+(\d+)\s+(\w+)\s+"([\s\S]*)"$/))){const o=sigOf(db,m[1],m[2]);if(o)o.comment=unesc(m[3]);}
+    else if((m=s.match(/^CM_\s+"([\s\S]*)"$/)))db.netComment=unesc(m[1]);
+    return;
+  }
+  if(/^BA_(DEF_DEF_REL_|DEF_REL_|REL_|DEF_SGTYPE_|SGTYPE_)/.test(s))return;
+  if(s.startsWith('BA_DEF_DEF_')){m=s.match(/^BA_DEF_DEF_\s+"([^"]+)"\s+([\s\S]*)$/);if(m)db.attrDefaults[m[1]]=pv(m[2]);return;}
+  if(s.startsWith('BA_DEF_')){
+    m=s.match(/^BA_DEF_\s+(BU_|BO_|SG_|EV_)?\s*"([^"]+)"\s+(INT|HEX|FLOAT|STRING|ENUM)\b\s*([\s\S]*)$/);
+    if(m){const d={obj:m[1]||'',type:m[3],enum:null,range:m[4].trim()};
+      if(d.type==='ENUM'){d.enum=[...m[4].matchAll(/"((?:[^"\\]|\\.)*)"/g)].map(x=>unesc(x[1]));d.range=d.enum.join(', ');}
+      db.attrDefs[m[2]]=d;}
+    return;
+  }
+  if(s.startsWith('BA_')){
+    m=s.match(/^BA_\s+"([^"]+)"\s+([\s\S]*)$/);if(!m)return;
+    const name=m[1],rest=m[2].trim();let r;
+    if((r=rest.match(/^BU_\s+(\w+)\s+([\s\S]+)$/)))(db.nodeAttrs[r[1]]??={})[name]=pv(r[2]);
+    else if((r=rest.match(/^BO_\s+(\d+)\s+([\s\S]+)$/))){const o=db.byId.get(Number(r[1]));if(o)o.attrs[name]=pv(r[2]);}
+    else if((r=rest.match(/^SG_\s+(\d+)\s+(\w+)\s+([\s\S]+)$/))){const o=sigOf(db,r[1],r[2]);if(o)o.attrs[name]=pv(r[3]);}
+    else if(/^EV_\s/.test(rest)){}
+    else db.netAttrs[name]=pv(rest);
+    return;
+  }
+  if(s.startsWith('VAL_TABLE_')){m=s.match(/^VAL_TABLE_\s+(\w+)\s*([\s\S]*)$/);if(m)db.valueTables[m[1]]=pairs(m[2]);return;}
+  if(s.startsWith('VAL_')){m=s.match(/^VAL_\s+(\d+)\s+(\w+)\s*([\s\S]*)$/);if(m){const o=sigOf(db,m[1],m[2]);if(o)o.values=pairs(m[3]);}return;}
+  if(s.startsWith('SIG_VALTYPE_')){m=s.match(/^SIG_VALTYPE_\s+(\d+)\s+(\w+)\s*:?\s*(\d)/);if(m){const o=sigOf(db,m[1],m[2]);if(o)o.valType=Number(m[3]);}return;}
+  if(s.startsWith('BO_TX_BU_')){m=s.match(/^BO_TX_BU_\s+(\d+)\s*:\s*([\s\S]*)$/);if(m){const o=db.byId.get(Number(m[1]));if(o)o.txExtra=m[2].split(/[\s,]+/).filter(x=>x&&x!==o.tx&&x!=='Vector__XXX');}return;}
+}
+
+function attrResolve(db,name,v){const d=db.attrDefs[name];if(d&&d.type==='ENUM'&&typeof v==='number'&&d.enum[v]!==undefined)return d.enum[v];return v;}
+function attrVal(db,o,name){const a=o&&o.attrs;let v=(a&&name in a)?a[name]:db.attrDefaults[name];return v===undefined?'':attrResolve(db,name,v);}
+
+function postProcess(db){
+  const known=new Set(db.nodes);
+  const add=n=>{if(n&&!known.has(n)){known.add(n);db.nodes.push(n);}};
+  for(const m of db.messages){
+    if(m.pseudo)continue;
+    [m.tx,...m.txExtra].forEach(add);
+    m.signals.forEach(s=>s.rx.forEach(add));
+    const ff=String(attrVal(db,m,'VFrameFormat')||'');
+    m.fd=/FD/i.test(ff)||m.len>8;
+    m.signals.forEach((s,k)=>{s.idx=k;s.bits=sigBits(s);});
+    checkMsg(db,m);
+  }
+  db.messages.filter(m=>m.pseudo).forEach(m=>m.signals.forEach((s,k)=>{s.idx=k;s.bits=sigBits(s);}));
+}
+function checkMsg(db,m){
+  const total=m.len*8,owners={},seen=new Set();
+  for(const s of m.signals){
+    if(s.len<=0||s.bits.some(b=>b<0||b>=total))db.warnings.push({k:'wOut',t:m.name+'.'+s.name});
+    const g=s.muxVal==null?'base':'m'+s.muxVal;
+    for(const b of s.bits)(owners[b]??=[]).push({s,g});
+  }
+  for(const b in owners){const a=owners[b];
+    for(let x=0;x<a.length;x++)for(let y=x+1;y<a.length;y++){
+      const p=a[x],q=a[y];
+      if(p.g==='base'||q.g==='base'||p.g===q.g){const key=p.s.name+'|'+q.s.name;
+        if(!seen.has(key)){seen.add(key);db.warnings.push({k:'wOverlap',t:m.name+': '+p.s.name+' ↔ '+q.s.name});}}
+    }}
+}
+
+/* ---------- helpers for scope ---------- */
+function hex(m){return '0x'+m.id.toString(16).toUpperCase().padStart(m.ext?8:3,'0');}
+function txNodes(m){return [m.tx,...m.txExtra].filter(Boolean);}
+function isTx(m,n){return m.tx===n||m.txExtra.includes(n);}
+function isRx(m,n){return m.signals.some(s=>s.rx.includes(n));}
+function rxUnion(m){const u=[];m.signals.forEach(s=>s.rx.forEach(n=>{if(!u.includes(n))u.push(n);}));return u;}
+function scoped(db,node,mode){
+  return db.messages.filter(m=>!m.pseudo&&(!node||((mode!=='rx'&&isTx(m,node))||(mode!=='tx'&&isRx(m,node)))));
+}
+function nodesIn(db,msgs){return db.nodes.filter(n=>msgs.some(m=>isTx(m,n)||isRx(m,n)));}
+function valTypeTxt(s,L){return s.valType===1?L.float:s.valType===2?L.double:(s.signed?L.signed:L.unsigned);}
+function muxTxt(s,L){return s.isMuxor?(s.muxVal!=null?s.mux+' ('+L.muxor+')':L.muxor):s.mux;}
+function initRaw(db,s){const v=attrVal(db,s,'GenSigStartValue');return v===''?'':v;}
+function initPhys(db,s){const v=initRaw(db,s);return (typeof v==='number'&&typeof s.factor==='number'&&typeof s.offset==='number')?clean(v*s.factor+s.offset):'';}
+
+/* ---------- Bus load ----------
+   Classic CAN: worst-case stuffing per Davis et al. (2007): bits = g + 8n + 13 + floor((g + 8n - 1)/4), g = 34 (std) / 54 (ext),
+   13 = CRC delim + ACK(2) + EOF(7) + IFS(3).
+   CAN FD (ISO 11898-1:2015): arbitration phase SOF..BRS at nominal rate (17 std / 36 ext bits, dynamic stuffing),
+   data phase ESI+DLC+data (dynamic stuffing) + stuff count(4) + CRC17/21 + fixed stuff bits (6/7) + CRC delimiter at data rate,
+   ACK(2) + EOF(7) + IFS(3) at nominal rate. Without BRS everything runs at nominal rate. */
+function rateFromAttr(v){const n=Number(v);if(!(n>0))return 0;return n<10000?n:n/1000;} // -> kbit/s
+function frameBits(m,brs){
+  const n=m.len;
+  if(!m.fd){const g=m.ext?54:34,base=g+8*n+13,st=Math.floor((g+8*n-1)/4);return {nomMin:base,nomMax:base+st,datMin:0,datMax:0};}
+  const arb=m.ext?36:17,arbSt=Math.floor((arb-1)/4),tail=12;
+  const crc=n>16?21:17,fsb=n>16?7:6,dyn=5+8*n,dynSt=Math.floor((dyn-1)/4);
+  const dat=dyn+4+crc+fsb+1;
+  if(brs)return {nomMin:arb+tail,nomMax:arb+arbSt+tail,datMin:dat,datMax:dat+dynSt};
+  return {nomMin:arb+tail+dat,nomMax:arb+arbSt+tail+dat+dynSt,datMin:0,datMax:0};
+}
+function busLoad(db,o){ // o: {nom, data} in kbit/s, brs bool, evt ms (0 = exclude non-periodic)
+  const nom=o.nom*1000,data=o.data*1000,rows=[],excl=[];let min=0,max=0,fps=0;
+  for(const m of db.messages){
+    if(m.pseudo)continue;
+    let cyc=Number(attrVal(db,m,'GenMsgCycleTime'))||0,src='dbc';
+    if(!(cyc>0)){if(o.evt>0){cyc=o.evt;src='evt';}else{excl.push(m);continue;}}
+    const b=frameBits(m,o.brs);
+    const tmin=b.nomMin/nom+(b.datMin?b.datMin/data:0),tmax=b.nomMax/nom+(b.datMax?b.datMax/data:0);
+    const lmin=tmin/(cyc/1000)*100,lmax=tmax/(cyc/1000)*100;
+    rows.push({m,cyc,src,bitsMin:b.nomMin+b.datMin,bitsMax:b.nomMax+b.datMax,tmin,tmax,lmin,lmax});
+    min+=lmin;max+=lmax;fps+=1000/cyc;
+  }
+  rows.sort((a,b)=>b.lmax-a.lmax);
+  const nodes={};
+  rows.forEach(r=>{const k=r.m.tx||'—',x=(nodes[k]??={node:k,n:0,min:0,max:0,fps:0});x.n++;x.min+=r.lmin;x.max+=r.lmax;x.fps+=1000/r.cyc;});
+  return {rows,excl,min,max,fps,nodes:Object.values(nodes).sort((a,b)=>b.max-a.max)};
+}
+const r3=x=>Math.round(x*1000)/1000;
+
+/* ---------- XLSX writer ---------- */
+const enc8=new TextEncoder();
+function xesc(s){return String(s).replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g,'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function colL(n){let s='';n++;while(n>0){const r=(n-1)%26;s=String.fromCharCode(65+r)+s;n=Math.floor((n-1)/26);}return s;}
+
+function sheetXML(sp){
+  const rows=[];
+  if(sp.header)rows.push(sp.header.map(h=>(h&&typeof h==='object')?h:{v:h,s:1}));
+  for(const r of sp.rows)rows.push(r);
+  let x='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">';
+  const fx=(sp.freeze&&sp.freeze.x)||0,fy=(sp.freeze&&sp.freeze.y)||0;
+  x+='<sheetViews><sheetView workbookViewId="0"'+(sp.noGrid?' showGridLines="0"':'')+'>';
+  if(fx||fy){const pane=fx&&fy?'bottomRight':fy?'bottomLeft':'topRight';
+    x+='<pane'+(fx?' xSplit="'+fx+'"':'')+(fy?' ySplit="'+fy+'"':'')+' topLeftCell="'+colL(fx)+(fy+1)+'" activePane="'+pane+'" state="frozen"/><selection pane="'+pane+'"/>';}
+  x+='</sheetView></sheetViews><sheetFormatPr defaultRowHeight="15"/>';
+  if(sp.cols&&sp.cols.length)x+='<cols>'+sp.cols.map((w,k)=>'<col min="'+(k+1)+'" max="'+(k+1)+'" width="'+w+'" customWidth="1"/>').join('')+'</cols>';
+  x+='<sheetData>';
+  const parts=[];
+  rows.forEach((row,ri)=>{
+    const rn=ri+1,ht=sp.heights&&sp.heights[ri];
+    let r='<row r="'+rn+'"'+(ht?' ht="'+ht+'" customHeight="1"':'')+'>';
+    row.forEach((c,ci)=>{
+      if(c===undefined||c===null)return;
+      let v,s;
+      if(typeof c==='object'){v=c.v;s=c.s;}else{v=c;s=sp.colStyle?sp.colStyle[ci]:2;}
+      if(s==null)s=2;
+      const ref=colL(ci)+rn;
+      if(v===''||v===undefined||v===null)r+='<c r="'+ref+'" s="'+s+'"/>';
+      else if(typeof v==='number'&&isFinite(v))r+='<c r="'+ref+'" s="'+s+'"><v>'+v+'</v></c>';
+      else{let t=String(v);if(t.length>32000)t=t.slice(0,32000);r+='<c r="'+ref+'" s="'+s+'" t="inlineStr"><is><t xml:space="preserve">'+xesc(t)+'</t></is></c>';}
+    });
+    parts.push(r+'</row>');
+  });
+  x+=parts.join('')+'</sheetData>';
+  if(sp.filter&&sp.header&&rows.length>1){
+    const lc=colL(sp.header.length-1);
+    sp._filterRef='$A$1:$'+lc+'$'+rows.length;
+    x+='<autoFilter ref="A1:'+lc+rows.length+'"/>';
+  }
+  x+='<pageMargins left="0.5" right="0.5" top="0.6" bottom="0.6" header="0.3" footer="0.3"/></worksheet>';
+  return x;
+}
+
+function stylesXML(){
+  const sf=c=>'<fill><patternFill patternType="solid"><fgColor rgb="FF'+c+'"/><bgColor indexed="64"/></patternFill></fill>';
+  const fills=['<fill><patternFill patternType="none"/></fill>','<fill><patternFill patternType="gray125"/></fill>'];
+  ['1F3A5F','C6EFCE','DDEBF7','EEF1F5'].forEach(c=>fills.push(sf(c)));          // 2..5
+  PALETTE.forEach(c=>fills.push(sf(c)));                                        // 6..
+  const F=(b,sz,col)=>'<font>'+(b?'<b/>':'')+'<sz val="'+sz+'"/>'+(col?'<color rgb="FF'+col+'"/>':'')+'<name val="Calibri"/><family val="2"/></font>';
+  const fonts=[F(0,10),F(1,10,'FFFFFF'),F(1,14,'1F3A5F'),F(0,9),F(1,10,'1F3A5F'),F(1,10,'006100')];
+  const bc='<color rgb="FFC9D1DB"/>';
+  const borders=['<border><left/><right/><top/><bottom/><diagonal/></border>',
+    '<border><left style="thin">'+bc+'</left><right style="thin">'+bc+'</right><top style="thin">'+bc+'</top><bottom style="thin">'+bc+'</bottom><diagonal/></border>'];
+  const xf=(f,fi,b,al)=>'<xf numFmtId="0" fontId="'+f+'" fillId="'+fi+'" borderId="'+b+'" xfId="0" applyFont="1" applyFill="1" applyBorder="1"'+(al?' applyAlignment="1"><alignment '+al+'/></xf>':'/>');
+  const xfs=[
+    xf(0,0,0),                                                         //0 default
+    xf(1,2,1,'horizontal="center" vertical="center" wrapText="1"'),    //1 header
+    xf(0,0,1,'vertical="top"'),                                        //2 body
+    xf(0,0,1,'vertical="top" wrapText="1"'),                           //3 body wrap
+    xf(2,0,0),                                                         //4 title
+    xf(0,0,1,'horizontal="center" vertical="top"'),                    //5 center
+    xf(5,3,1,'horizontal="center" vertical="center"'),                 //6 S
+    xf(4,4,1,'horizontal="center" vertical="center"'),                 //7 R
+    xf(1,2,1,'horizontal="center" vertical="bottom" textRotation="90"'),//8 rotated header
+    xf(4,5,1,'vertical="top"'),                                        //9 key cell
+    xf(4,0,0,'vertical="center"')                                      //10 section title
+  ];
+  PALETTE.forEach((c,k)=>xfs.push(xf(3,6+k,1,'horizontal="center" vertical="center" shrinkToFit="1"'))); //11..22
+  return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+    +'<fonts count="'+fonts.length+'">'+fonts.join('')+'</fonts>'
+    +'<fills count="'+fills.length+'">'+fills.join('')+'</fills>'
+    +'<borders count="'+borders.length+'">'+borders.join('')+'</borders>'
+    +'<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
+    +'<cellXfs count="'+xfs.length+'">'+xfs.join('')+'</cellXfs>'
+    +'<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>';
+}
+
+function buildXlsx(sheets){
+  const used=new Set();
+  sheets.forEach(sp=>{let n=sp.name.replace(/[\[\]:*?\/\\]/g,' ').slice(0,31).trim()||'Sheet';const b=n;let k=2;
+    while(used.has(n.toLowerCase()))n=b.slice(0,27)+' ('+(k++)+')';used.add(n.toLowerCase());sp.name=n;});
+  const files=[];
+  sheets.forEach((sp,k)=>files.push({name:'xl/worksheets/sheet'+(k+1)+'.xml',data:sheetXML(sp)}));
+  const dn=sheets.map((sp,k)=>sp._filterRef?'<definedName name="_xlnm._FilterDatabase" localSheetId="'+k+'" hidden="1">'+xesc("'"+sp.name.replace(/'/g,"''")+"'!"+sp._filterRef)+'</definedName>':'').join('');
+  const H='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
+  files.unshift(
+    {name:'[Content_Types].xml',data:H+'<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
+      +sheets.map((s,k)=>'<Override PartName="/xl/worksheets/sheet'+(k+1)+'.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>').join('')
+      +'<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>'},
+    {name:'_rels/.rels',data:H+'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>'},
+    {name:'xl/workbook.xml',data:H+'<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><bookViews><workbookView/></bookViews><sheets>'
+      +sheets.map((s,k)=>'<sheet name="'+xesc(s.name)+'" sheetId="'+(k+1)+'" r:id="rId'+(k+1)+'"/>').join('')+'</sheets>'+(dn?'<definedNames>'+dn+'</definedNames>':'')+'</workbook>'},
+    {name:'xl/_rels/workbook.xml.rels',data:H+'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+      +sheets.map((s,k)=>'<Relationship Id="rId'+(k+1)+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet'+(k+1)+'.xml"/>').join('')
+      +'<Relationship Id="rId'+(sheets.length+1)+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>'},
+    {name:'xl/styles.xml',data:stylesXML()}
+  );
+  return zip(files);
+}
+
+/* ---------- ZIP (store) ---------- */
+const CRC_T=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0;}return t;})();
+function crc32(d){let c=0xFFFFFFFF;for(let i=0;i<d.length;i++)c=CRC_T[(c^d[i])&0xFF]^(c>>>8);return (c^0xFFFFFFFF)>>>0;}
+function zip(files){
+  const now=new Date();
+  const dt=((now.getFullYear()-1980)<<9)|((now.getMonth()+1)<<5)|now.getDate();
+  const tm=(now.getHours()<<11)|(now.getMinutes()<<5)|(now.getSeconds()>>1);
+  const parts=[],central=[];let off=0;
+  for(const f of files){
+    const name=enc8.encode(f.name),data=typeof f.data==='string'?enc8.encode(f.data):f.data,crc=crc32(data);
+    const lh=new Uint8Array(30+name.length),v=new DataView(lh.buffer);
+    v.setUint32(0,0x04034b50,true);v.setUint16(4,20,true);v.setUint16(6,0x0800,true);v.setUint16(8,0,true);
+    v.setUint16(10,tm,true);v.setUint16(12,dt,true);v.setUint32(14,crc,true);v.setUint32(18,data.length,true);
+    v.setUint32(22,data.length,true);v.setUint16(26,name.length,true);v.setUint16(28,0,true);lh.set(name,30);
+    const ch=new Uint8Array(46+name.length),w=new DataView(ch.buffer);
+    w.setUint32(0,0x02014b50,true);w.setUint16(4,20,true);w.setUint16(6,20,true);w.setUint16(8,0x0800,true);
+    w.setUint16(10,0,true);w.setUint16(12,tm,true);w.setUint16(14,dt,true);w.setUint32(16,crc,true);
+    w.setUint32(20,data.length,true);w.setUint32(24,data.length,true);w.setUint16(28,name.length,true);
+    w.setUint32(42,off,true);ch.set(name,46);
+    parts.push(lh,data);central.push(ch);off+=lh.length+data.length;
+  }
+  const cd=central.reduce((a,b)=>a+b.length,0);
+  const end=new Uint8Array(22),e=new DataView(end.buffer);
+  e.setUint32(0,0x06054b50,true);e.setUint16(8,files.length,true);e.setUint16(10,files.length,true);e.setUint32(12,cd,true);e.setUint32(16,off,true);
+  const all=[...parts,...central,end],out=new Uint8Array(all.reduce((a,b)=>a+b.length,0));
+  let p=0;for(const a of all){out.set(a,p);p+=a.length;}
+  return out;
+}
+
+/* ---------- Workbook content ---------- */
+function table(name,cols,items,fx){
+  cols=cols.filter(c=>c.on!==false);
+  return {name,header:cols.map(c=>c.h),cols:cols.map(c=>c.w),colStyle:cols.map(c=>c.s??2),
+    rows:items.map(it=>cols.map(c=>{const v=c.f(it);return v===undefined||v===null?'':v;})),freeze:{x:fx||1,y:1},filter:true};
+}
+function buildWorkbook(db,opt,L){
+  const node=opt.node||'',mode=opt.mode||'all',S=opt.sheets;
+  const msgs=scoped(db,node,mode);
+  const sigs=[];msgs.forEach(m=>m.signals.forEach(s=>sigs.push([m,s])));
+  const nodes=nodesIn(db,msgs);
+  const cyc=m=>attrVal(db,m,'GenMsgCycleTime');
+  const mdir=m=>[isTx(m,node)?'TX':'',isRx(m,node)?'RX':''].filter(Boolean).join(' / ');
+  const sdir=(m,s)=>isTx(m,node)?'TX':(s.rx.includes(node)?'RX':'');
+  const sheets=[];
+
+  if(S.has('overview')){
+    const net={attrs:db.netAttrs},kv=(k,v)=>[{v:k,s:9},{v:(v===''||v==null)?'—':v,s:3}];
+    const rows=[[{v:L.xTitle,s:4}],[],
+      kv(L.ovFile,db.fileName),kv(L.ovVersion,db.version),kv(L.ovDb,attrVal(db,net,'DBName')),
+      kv(L.ovBus,attrVal(db,net,'BusType')),kv(L.ovBaud,attrVal(db,net,'Baudrate')),kv(L.ovBaudFD,attrVal(db,net,'BaudrateCANFD')),
+      kv(L.ovScope,node?node+' ('+(mode==='all'?'TX + RX':mode.toUpperCase())+')':L.allNodes),
+      kv(L.ovCounts,msgs.length+' / '+sigs.length+' / '+nodes.length),
+      kv(L.ovFd,msgs.filter(m=>m.fd).length),kv(L.ovExt,msgs.filter(m=>m.ext).length),
+      ...(opt.bus?(()=>{const b=busLoad(db,opt.bus);return [kv(L.ovBusload,b.min.toFixed(2)+' – '+b.max.toFixed(2)+' %')];})():[]),
+      kv(L.ovComment,db.netComment),kv(L.ovDate,new Date().toLocaleString()),kv(L.ovTool,'DBC → Excel (offline)')];
+    sheets.push({name:L.s_overview,cols:[30,90],rows,noGrid:true});
+  }
+  if(S.has('messages')){
+    sheets.push(table(L.s_messages,[
+      {h:L.hMessage,w:32,f:m=>m.name},
+      {h:L.hIdHex,w:12,s:5,f:hex},{h:L.hIdDec,w:12,s:5,f:m=>m.id},
+      {h:L.hIdFmt,w:13,s:5,f:m=>m.ext?L.ext:L.std},{h:L.hFrame,w:9,s:5,f:m=>m.fd?'CAN FD':'CAN'},
+      {h:L.hLen,w:10,s:5,f:m=>m.len},{h:L.hTx,w:18,f:m=>txNodes(m).join(', ')},
+      {h:L.hDir,w:9,s:5,on:!!node,f:mdir},
+      {h:L.hCycle,w:11,s:5,f:cyc},{h:L.hSendType,w:16,f:m=>attrVal(db,m,'GenMsgSendType')},
+      {h:L.hSigCount,w:9,s:5,f:m=>m.signals.length},{h:L.hRx,w:34,s:3,f:m=>rxUnion(m).join(', ')},
+      {h:L.hComment,w:55,s:3,f:m=>m.comment}],msgs,1));
+  }
+  if(S.has('signals')){
+    sheets.push(table(L.s_signals,[
+      {h:L.hMessage,w:28,f:([m])=>m.name},{h:L.hIdHex,w:12,s:5,f:([m])=>hex(m)},
+      {h:L.hTx,w:16,f:([m])=>txNodes(m).join(', ')},{h:L.hDir,w:8,s:5,on:!!node,f:([m,s])=>sdir(m,s)},
+      {h:L.hSignal,w:34,f:([,s])=>s.name},
+      {h:L.hStart,w:9,s:5,f:([,s])=>s.start},{h:L.hLength,w:9,s:5,f:([,s])=>s.len},
+      {h:L.hOrder,w:11,s:5,f:([,s])=>s.intel?'Intel':'Motorola'},
+      {h:L.hStartByte,w:9,s:5,f:([,s])=>Math.floor(s.start/8)},
+      {h:'MSB',w:7,s:5,f:([,s])=>s.bits[0]},{h:'LSB',w:7,s:5,f:([,s])=>s.bits[s.bits.length-1]},
+      {h:L.hValType,w:12,s:5,f:([,s])=>valTypeTxt(s,L)},
+      {h:L.hFactor,w:10,s:5,f:([,s])=>s.factor},{h:L.hOffset,w:10,s:5,f:([,s])=>s.offset},
+      {h:L.hMin,w:10,s:5,f:([,s])=>s.min},{h:L.hMax,w:12,s:5,f:([,s])=>s.max},
+      {h:L.hUnit,w:10,s:5,f:([,s])=>s.unit},
+      {h:L.hInitRaw,w:11,s:5,f:([,s])=>initRaw(db,s)},{h:L.hInitPhys,w:11,s:5,f:([,s])=>initPhys(db,s)},
+      {h:L.hMux,w:14,s:5,f:([,s])=>muxTxt(s,L)},
+      {h:L.hRx,w:30,s:3,f:([,s])=>s.rx.join(', ')},
+      {h:L.hValues,w:42,s:3,f:([,s])=>s.values?s.values.map(([v,d])=>v+': '+d).join('\n'):''},
+      {h:L.hComment,w:55,s:3,f:([,s])=>s.comment}],sigs,node?5:4));
+  }
+  if(S.has('matrix')){
+    const rows=[];
+    msgs.forEach(m=>{
+      const list=m.signals.length?m.signals:[null];
+      list.forEach(s=>rows.push([m.name,{v:hex(m),s:5},s?s.name:'—',{v:cyc(m),s:5},
+        ...nodes.map(n=>isTx(m,n)?{v:'S',s:6}:(s&&s.rx.includes(n))?{v:'R',s:7}:{v:'',s:5})]));
+    });
+    const maxLen=nodes.reduce((a,n)=>Math.max(a,n.length),4);
+    sheets.push({name:L.s_matrix,header:[L.hMessage,L.hIdHex,L.hSignal,L.hCycle,...nodes.map(n=>({v:n,s:8}))],
+      cols:[28,12,34,10,...nodes.map(()=>4.6)],rows,freeze:{x:3,y:1},filter:true,heights:{0:Math.min(160,Math.max(48,maxLen*6.2+10))}});
+  }
+  if(S.has('values')){
+    const items=[];
+    sigs.forEach(([m,s])=>{if(s.values)s.values.forEach(([v,d])=>items.push([m.name,hex(m),s.name,v,d]));});
+    Object.entries(db.valueTables).forEach(([t,vals])=>vals.forEach(([v,d])=>items.push(['VAL_TABLE_','',t,v,d])));
+    sheets.push(table(L.s_values,[
+      {h:L.hMessage,w:28,f:r=>r[0]},{h:L.hIdHex,w:12,s:5,f:r=>r[1]},{h:L.hSignal,w:34,f:r=>r[2]},
+      {h:L.hValue,w:10,s:5,f:r=>r[3]},{h:L.hDesc,w:60,s:3,f:r=>r[4]}],items,3));
+  }
+  if(S.has('nodes')){
+    sheets.push(table(L.s_nodes,[
+      {h:L.hNode,w:22,f:n=>n},
+      {h:L.hTxN,w:10,s:5,f:n=>msgs.filter(m=>isTx(m,n)).length},
+      {h:L.hRxN,w:10,s:5,f:n=>msgs.filter(m=>isRx(m,n)).length},
+      {h:L.hTxList,w:60,s:3,f:n=>msgs.filter(m=>isTx(m,n)).map(m=>m.name).join(', ')},
+      {h:L.hComment,w:50,s:3,f:n=>db.nodeComments[n]||''}],nodes,1));
+  }
+  if(S.has('attrs')){
+    const items=[],dflt=n=>{const d=db.attrDefaults[n];return d===undefined?'':attrResolve(db,n,d);};
+    const push=(t,o,a)=>Object.entries(a||{}).forEach(([k,v])=>items.push([t,o,k,attrResolve(db,k,v),dflt(k)]));
+    push(L.oNet,db.fileName,db.netAttrs);
+    nodes.forEach(n=>push(L.oNode,n,db.nodeAttrs[n]));
+    msgs.forEach(m=>push(L.oMsg,m.name,m.attrs));
+    sigs.forEach(([m,s])=>push(L.oSig,m.name+'.'+s.name,s.attrs));
+    sheets.push(table(L.s_attrs,[
+      {h:L.hObjType,w:12,s:5,f:r=>r[0]},{h:L.hObj,w:44,f:r=>r[1]},{h:L.hAttr,w:30,f:r=>r[2]},
+      {h:L.hValue,w:24,f:r=>r[3]},{h:L.hDefault,w:20,f:r=>r[4]}],items,2));
+  }
+  if(S.has('attrDefs')){
+    const on={'':L.oNet,BU_:L.oNode,BO_:L.oMsg,SG_:L.oSig,EV_:L.oEv};
+    sheets.push(table(L.s_attrDefs,[
+      {h:L.hAttr,w:30,f:([n])=>n},{h:L.hObjType,w:14,s:5,f:([,d])=>on[d.obj]||d.obj},
+      {h:L.hType,w:10,s:5,f:([,d])=>d.type},{h:L.hRange,w:60,s:3,f:([,d])=>d.range},
+      {h:L.hDefault,w:22,f:([n])=>db.attrDefaults[n]===undefined?'':db.attrDefaults[n]}],Object.entries(db.attrDefs),1));
+  }
+  if(S.has('busload')&&opt.bus){
+    const o=opt.bus,bl=busLoad(db,o),hasFd=db.messages.some(m=>!m.pseudo&&m.fd);
+    const kv=(k,v,s)=>[{v:k,s:9},{v:(v===''||v==null)?'—':v,s:s||3}];
+    const rows=[[{v:L.blT,s:4}],[],
+      kv(L.blNom,o.nom+' kbit/s'),kv(L.blData,hasFd?o.data+' kbit/s':'—'),kv(L.blBrs,hasFd?(o.brs?L.yes:L.no):'—'),
+      kv(L.blEvt,o.evt>0?o.evt+' ms':L.blEvtOff),
+      kv(L.blMin+' [%]',r3(bl.min),5),kv(L.blMax+' [%]',r3(bl.max),5),kv(L.blFps,Math.round(bl.fps),5),
+      kv(L.blExclK,bl.excl.length?bl.excl.length+': '+bl.excl.map(m=>m.name).join(', '):0),
+      kv(L.blMethodK,L.blMethod),[],
+      [L.hTx,L.blMsgCnt,L.blFps,L.hLoadMin,L.hLoadMax,L.hShare].map(h=>({v:h,s:1})),
+      ...bl.nodes.map(x=>[{v:x.node,s:2},{v:x.n,s:5},{v:Math.round(x.fps),s:5},{v:r3(x.min),s:5},{v:r3(x.max),s:5},{v:bl.max?r3(x.max/bl.max*100):0,s:5}])];
+    sheets.push({name:L.s_busload,cols:[30,48,12,14,14,12],rows,noGrid:true});
+    const items=[...bl.rows,...bl.excl.map(m=>({m,excl:true}))];
+    const ex=(r,f)=>r.excl?'':f(r);
+    sheets.push(table(L.s_busMsgs,[
+      {h:L.hMessage,w:32,f:r=>r.m.name},{h:L.hIdHex,w:12,s:5,f:r=>hex(r.m)},{h:L.hFrame,w:9,s:5,f:r=>r.m.fd?'CAN FD':'CAN'},
+      {h:L.hLen,w:10,s:5,f:r=>r.m.len},{h:L.hTx,w:16,f:r=>txNodes(r.m).join(', ')},
+      {h:L.hCycle,w:11,s:5,f:r=>ex(r,x=>x.cyc)},{h:L.hPeriodSrc,w:16,s:5,f:r=>r.excl?L.blExclTag:(r.src==='dbc'?'DBC':L.blEvtTag)},
+      {h:L.hBitsMin,w:10,s:5,f:r=>ex(r,x=>x.bitsMin)},{h:L.hBitsMax,w:10,s:5,f:r=>ex(r,x=>x.bitsMax)},
+      {h:L.hTimeMin,w:12,s:5,f:r=>ex(r,x=>r3(x.tmin*1e6))},{h:L.hTimeMax,w:12,s:5,f:r=>ex(r,x=>r3(x.tmax*1e6))},
+      {h:L.hLoadMin,w:11,s:5,f:r=>ex(r,x=>r3(x.lmin))},{h:L.hLoadMax,w:11,s:5,f:r=>ex(r,x=>r3(x.lmax))}],items,1));
+  }
+  if(S.has('bitmap')){
+    const rows=[];
+    msgs.forEach(m=>{
+      rows.push([{v:m.name+'   '+hex(m)+'   ['+m.len+' B]   TX: '+(txNodes(m).join(', ')||'—')+(m.fd?'   CAN FD':''),s:10}]);
+      rows.push([{v:L.byte,s:1},...[7,6,5,4,3,2,1,0].map(b=>({v:'Bit '+b,s:1}))]);
+      const own={};
+      m.signals.forEach(s=>s.bits.forEach((b,k)=>{own[b]={s,msb:k===0,lsb:k===s.bits.length-1};}));
+      for(let B=0;B<m.len;B++){
+        rows.push([{v:B,s:9},...[7,6,5,4,3,2,1,0].map(b=>{const o=own[B*8+b];
+          if(!o)return {v:'',s:5};
+          return {v:o.msb?o.s.name:(o.lsb?'LSB':''),s:11+(o.s.idx%PALETTE.length)};})]);
+      }
+      rows.push([]);
+    });
+    sheets.push({name:L.s_bitmap,cols:[8,17,17,17,17,17,17,17,17],rows,noGrid:true});
+  }
+  return sheets;
+}
+</script>
+
+<script>
+/* ================= UI ================= */
+const I18N={
+tr:{title:'DBC → Excel Dönüştürücü',sub:'CAN / CAN FD veritabanını çevrimdışı olarak Excel\'e aktarır',
+ drop:'DBC dosyalarını buraya sürükleyin',dropHint:'veya tıklayıp seçin — birden fazla dosya desteklenir, veriler bilgisayarınızdan çıkmaz',
+ dropMore:'Başka DBC ekle',enc:'Kodlama',encAuto:'Otomatik (UTF-8 → Win-1254)',file:'Dosya',scope:'Kapsam',allNodes:'Tüm düğümler',
+ dir:'Yön',dirAll:'TX + RX',exp:'Excel\'e Aktar',batchN:'Düğüm başına (ZIP)',batchF:'Tüm dosyalar (ZIP)',search:'Mesaj / ID / sinyal ara…',
+ stMsg:'Mesaj',stSig:'Sinyal',stNode:'Düğüm',stFd:'CAN FD',stExt:'Genişletilmiş ID',stVal:'Değer tablolu sinyal',stWarn:'Uyarı',
+ pick:'Ayrıntılar için soldan bir mesaj seçin',none:'Bu kapsamda mesaj yok',bitmapT:'Bit Haritası',sigsT:'Sinyaller',
+ legend:'Kalın etiket = MSB, köşe noktası = LSB, kırmızı çerçeve = çakışma. Sinyale tıklayarak bitlerini vurgulayın.',
+ warns:'ayrıştırma uyarısı',wOut:'bit aralığı mesaj uzunluğunu aşıyor',wOverlap:'bit çakışması',wNoBo:'BO_ olmadan SG_',wParse:'ayrıştırma hatası',
+ done:'dışa aktarıldı',noNodes:'Dışa aktarılacak düğüm bulunamadı',err:'Hata',loaded:'dosya yüklendi',
+ s_overview:'Özet',s_messages:'Mesajlar',s_signals:'Sinyaller',s_matrix:'İletişim Matrisi',s_values:'Değer Tabloları',
+ s_nodes:'Düğümler',s_attrs:'Öznitelikler',s_attrDefs:'Öznitelik Tanımları',s_bitmap:'Bit Haritası',
+ hMessage:'Mesaj',hIdHex:'ID (Hex)',hIdDec:'ID (Dec)',hIdFmt:'ID Formatı',hFrame:'Çerçeve',hLen:'Uzunluk [B]',hTx:'Gönderici',hDir:'Yön',
+ hCycle:'Periyot [ms]',hSendType:'Gönderim Tipi',hSigCount:'Sinyal Sayısı',hRx:'Alıcılar',hComment:'Açıklama',hSignal:'Sinyal',
+ hStart:'Başlangıç Biti',hLength:'Uzunluk [bit]',hOrder:'Bayt Sırası',hStartByte:'Başlangıç Baytı',hValType:'Değer Tipi',
+ hFactor:'Çarpan',hOffset:'Ofset',hMin:'Min',hMax:'Maks',hUnit:'Birim',hInitRaw:'Başlangıç (ham)',hInitPhys:'Başlangıç (fiz.)',
+ hMux:'Multiplex',hValues:'Değer Tablosu',hValue:'Değer',hDesc:'Tanım',hNode:'Düğüm',hTxN:'TX Mesaj',hRxN:'RX Mesaj',
+ hTxList:'Gönderilen Mesajlar',hObjType:'Nesne Tipi',hObj:'Nesne',hAttr:'Öznitelik',hDefault:'Varsayılan',hType:'Tip',hRange:'Aralık / Değerler',
+ std:'Standart',ext:'Genişletilmiş',unsigned:'İşaretsiz',signed:'İşaretli',float:'IEEE Float',double:'IEEE Double',muxor:'Multiplexer',
+ oNet:'Ağ',oNode:'Düğüm',oMsg:'Mesaj',oSig:'Sinyal',oEv:'Ortam Değ.',byte:'Bayt',
+ ovFile:'Dosya',ovVersion:'Sürüm',ovDb:'Veritabanı Adı',ovBus:'Bus Tipi',ovBaud:'Baud Hızı',ovBaudFD:'CAN FD Veri Hızı',ovScope:'Kapsam',
+ ovCounts:'Mesaj / Sinyal / Düğüm',ovFd:'CAN FD Mesaj',ovExt:'Genişletilmiş ID Mesaj',ovComment:'Ağ Açıklaması',ovDate:'Dışa Aktarım',ovTool:'Araç',
+ xTitle:'DBC Veritabanı Raporu',cycle:'Periyot',sendType:'Gönderim',len:'Uzunluk',frame:'Çerçeve',txN:'Gönderici',
+ s_busload:'Bus Yükü',s_busMsgs:'Bus Yükü - Mesajlar',blT:'Bus Yükü',blNom:'Nominal hız [kbit/s]',blData:'FD veri hızı [kbit/s]',
+ blBrs:'BRS (bit hızı geçişi)',blEvt:'Olay msj. periyodu [ms]',blThr:'Eşik [%]',blMin:'Min (stuffing yok)',blMax:'Maks (en kötü stuffing)',
+ blFps:'Çerçeve/s',blMsgCnt:'Mesaj',blEvtOff:'Hariç (0)',blExclK:'Hesaba katılmayan mesajlar',blExclTag:'Hariç (periyot yok)',blEvtTag:'Varsayılan (olay)',
+ blMethodK:'Yöntem',blMethod:'Klasik CAN: Davis vd. (2007) en kötü durum bit stuffing. CAN FD: ISO 11898-1:2015 çerçeve yapısı; hakem fazı nominal, veri fazı (BRS açıkken) veri hızında; sabit stuff bitleri, ACK, EOF ve 3 bit IFS dahil. Periyodu olmayan mesajlar, olay periyodu 0 ise hesaba katılmaz.',
+ blExclNote:'periyodu olmayan mesaj hesaba katılmadı — "Olay msj. periyodu" ile dahil edebilirsiniz.',blNodeT:'Gönderici payı',blTop:'En çok yük getiren mesajlar',
+ blNone:'Periyodik mesaj bulunamadı',hBitsMin:'Bit (min)',hBitsMax:'Bit (maks)',hTimeMin:'Süre min [µs]',hTimeMax:'Süre maks [µs]',
+ hLoadMin:'Yük min [%]',hLoadMax:'Yük maks [%]',hShare:'Pay [%]',hPeriodSrc:'Periyot Kaynağı',ovBusload:'Bus Yükü (min – maks)',yes:'Açık',no:'Kapalı',
+ blWhole:'Tüm bus — kapsam seçiminden bağımsız'},
+en:{title:'DBC → Excel Converter',sub:'Exports CAN / CAN FD databases to Excel, fully offline',
+ drop:'Drop DBC files here',dropHint:'or click to browse — multiple files supported, nothing leaves your computer',
+ dropMore:'Add another DBC',enc:'Encoding',encAuto:'Auto (UTF-8 → Win-1254)',file:'File',scope:'Scope',allNodes:'All nodes',
+ dir:'Direction',dirAll:'TX + RX',exp:'Export to Excel',batchN:'Per node (ZIP)',batchF:'All files (ZIP)',search:'Search message / ID / signal…',
+ stMsg:'Messages',stSig:'Signals',stNode:'Nodes',stFd:'CAN FD',stExt:'Extended ID',stVal:'Signals w/ values',stWarn:'Warnings',
+ pick:'Select a message on the left to see details',none:'No messages in this scope',bitmapT:'Bit Map',sigsT:'Signals',
+ legend:'Bold label = MSB, corner dot = LSB, red outline = overlap. Click a signal to highlight its bits.',
+ warns:'parse warnings',wOut:'bit range exceeds message length',wOverlap:'bit overlap',wNoBo:'SG_ without BO_',wParse:'parse error',
+ done:'exported',noNodes:'No nodes to export',err:'Error',loaded:'file(s) loaded',
+ s_overview:'Overview',s_messages:'Messages',s_signals:'Signals',s_matrix:'Comm Matrix',s_values:'Value Tables',
+ s_nodes:'Nodes',s_attrs:'Attributes',s_attrDefs:'Attribute Defs',s_bitmap:'Bit Map',
+ hMessage:'Message',hIdHex:'ID (Hex)',hIdDec:'ID (Dec)',hIdFmt:'ID Format',hFrame:'Frame',hLen:'Length [B]',hTx:'Transmitter',hDir:'Dir',
+ hCycle:'Cycle [ms]',hSendType:'Send Type',hSigCount:'Signals',hRx:'Receivers',hComment:'Comment',hSignal:'Signal',
+ hStart:'Start Bit',hLength:'Length [bit]',hOrder:'Byte Order',hStartByte:'Start Byte',hValType:'Value Type',
+ hFactor:'Factor',hOffset:'Offset',hMin:'Min',hMax:'Max',hUnit:'Unit',hInitRaw:'Initial (raw)',hInitPhys:'Initial (phys)',
+ hMux:'Multiplex',hValues:'Value Table',hValue:'Value',hDesc:'Description',hNode:'Node',hTxN:'TX Msgs',hRxN:'RX Msgs',
+ hTxList:'Transmitted Messages',hObjType:'Object Type',hObj:'Object',hAttr:'Attribute',hDefault:'Default',hType:'Type',hRange:'Range / Values',
+ std:'Standard',ext:'Extended',unsigned:'Unsigned',signed:'Signed',float:'IEEE Float',double:'IEEE Double',muxor:'Multiplexor',
+ oNet:'Network',oNode:'Node',oMsg:'Message',oSig:'Signal',oEv:'Env Var',byte:'Byte',
+ ovFile:'File',ovVersion:'Version',ovDb:'Database Name',ovBus:'Bus Type',ovBaud:'Baudrate',ovBaudFD:'CAN FD Data Rate',ovScope:'Scope',
+ ovCounts:'Messages / Signals / Nodes',ovFd:'CAN FD Messages',ovExt:'Extended ID Messages',ovComment:'Network Comment',ovDate:'Exported',ovTool:'Tool',
+ xTitle:'DBC Database Report',cycle:'Cycle',sendType:'Send type',len:'Length',frame:'Frame',txN:'Transmitter',
+ s_busload:'Bus Load',s_busMsgs:'Bus Load - Messages',blT:'Bus Load',blNom:'Nominal rate [kbit/s]',blData:'FD data rate [kbit/s]',
+ blBrs:'BRS (bit rate switch)',blEvt:'Event msg period [ms]',blThr:'Threshold [%]',blMin:'Min (no stuffing)',blMax:'Max (worst-case stuffing)',
+ blFps:'Frames/s',blMsgCnt:'Messages',blEvtOff:'Excluded (0)',blExclK:'Excluded messages',blExclTag:'Excluded (no cycle)',blEvtTag:'Default (event)',
+ blMethodK:'Method',blMethod:'Classic CAN: worst-case bit stuffing per Davis et al. (2007). CAN FD: ISO 11898-1:2015 frame layout; arbitration at nominal rate, data phase at data rate when BRS is on; fixed stuff bits, ACK, EOF and 3-bit IFS included. Messages without a cycle time are excluded when the event period is 0.',
+ blExclNote:'message(s) without a cycle time excluded — set "Event msg period" to include them.',blNodeT:'Transmitter share',blTop:'Top contributors',
+ blNone:'No periodic messages found',hBitsMin:'Bits (min)',hBitsMax:'Bits (max)',hTimeMin:'Time min [µs]',hTimeMax:'Time max [µs]',
+ hLoadMin:'Load min [%]',hLoadMax:'Load max [%]',hShare:'Share [%]',hPeriodSrc:'Cycle Source',ovBusload:'Bus Load (min – max)',yes:'On',no:'Off',
+ blWhole:'Whole bus — independent of scope'}
+};
+const SHEET_KEYS=['overview','messages','signals','matrix','values','nodes','attrs','attrDefs','busload','bitmap'];
+const $=s=>document.querySelector(s);
+const st={files:[],dbs:[],active:-1,lang:'tr',sel:null,selSig:null,sheets:new Set(SHEET_KEYS)};
+try{const l=localStorage.getItem('dbc2xl.lang');if(l&&I18N[l])st.lang=l;}catch(e){}
+const L=()=>I18N[st.lang];
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const db=()=>st.dbs[st.active];
+
+function decode(buf){
+  const e=$('#enc').value;
+  if(e!=='auto')return new TextDecoder(e).decode(buf);
+  try{return new TextDecoder('utf-8',{fatal:true}).decode(buf);}catch(_){return new TextDecoder('windows-1254').decode(buf);}
+}
+async function loadFiles(list){
+  const fs=[...list].filter(f=>/\.dbc$/i.test(f.name));
+  if(!fs.length)return;
+  for(const f of fs){
+    const buf=new Uint8Array(await f.arrayBuffer());
+    const i=st.files.findIndex(x=>x.name===f.name);
+    const d=parseDBC(decode(buf),f.name);
+    if(i>=0){st.files[i]={name:f.name,buf};st.dbs[i]=d;st.active=i;}
+    else{st.files.push({name:f.name,buf});st.dbs.push(d);st.active=st.dbs.length-1;}
+  }
+  st.sel=null;st.selSig=null;
+  setRates();
+  toast(fs.length+' '+L().loaded);
+  renderAll();
+}
+function reparse(){st.dbs=st.files.map(f=>parseDBC(decode(f.buf),f.name));st.sel=null;setRates();renderAll();}
+
+/* ---------- bus load UI ---------- */
+function setRates(){ // take bitrates from DBC attributes when present
+  const d=db();if(!d)return;const net={attrs:d.netAttrs};
+  const nom=rateFromAttr(attrVal(d,net,'Baudrate')),fd=rateFromAttr(attrVal(d,net,'BaudrateCANFD'));
+  if(nom)$('#bNom').value=nom;if(fd)$('#bData').value=fd;
+}
+function busOpts(){return {nom:Math.max(1,+$('#bNom').value||500),data:Math.max(1,+$('#bData').value||2000),brs:$('#bBrs').checked,evt:Math.max(0,+$('#bEvt').value||0)};}
+function renderBus(){
+  const t=L(),d=db(),o=busOpts(),bl=busLoad(d,o),thr=Math.min(100,Math.max(1,+$('#bThr').value||50));
+  const hasFd=d.messages.some(m=>!m.pseudo&&m.fd);
+  $('#bData').disabled=!hasFd;$('#bBrs').disabled=!hasFd;$('#bBrs').parentElement.classList.toggle('dis',!hasFd);
+  const out=$('#blOut');
+  if(!bl.rows.length){out.innerHTML=`<div class="blnote">${esc(t.blNone)}${bl.excl.length?' — '+bl.excl.length+' '+esc(t.blExclNote):''}</div>`;return;}
+  const col=v=>v>=thr?'var(--err)':v>=thr*0.8?'var(--warn)':'var(--ok)';
+  const pct=v=>Math.min(100,v).toFixed(2)+'%',c=col(bl.max);
+  let h=`<div class="blsum"><div>
+    <div class="big" style="color:${c}">${bl.min.toFixed(2)} – ${bl.max.toFixed(2)} %<small>${Math.round(bl.fps)} ${esc(t.blFps)}</small></div>
+    <div class="gauge"><div class="rng" style="width:${pct(bl.max)};background:${c}"></div><div class="val" style="width:${pct(bl.min)};background:${c}"></div><div class="thr" style="left:${thr}%" title="${thr}%"></div></div>
+    <div class="gscale"><span>0%</span><span>${esc(t.blThr)}: ${thr}%</span><span>100%</span></div>
+    <div class="blnote">${esc(t.blMin)} / ${esc(t.blMax)} · ${esc(t.blWhole)}</div>
+    ${bl.excl.length?`<div class="blnote" style="color:var(--warn)">${bl.excl.length} ${esc(t.blExclNote)}</div>`:''}
+  </div>`;
+  const top=bl.nodes[0]?bl.nodes[0].max:1;
+  h+=`<div><h3 style="margin-top:0">${esc(t.blNodeT)}</h3><table class="mini"><tr><th>${esc(t.hTx)}</th><th>${esc(t.blMsgCnt)}</th><th>${esc(t.hLoadMax)}</th><th style="width:30%"></th></tr>`
+    +bl.nodes.map(x=>`<tr><td>${esc(x.node)}</td><td class="n">${x.n}</td><td class="n">${x.max.toFixed(2)}</td><td><div class="bar1" style="width:${(x.max/top*100).toFixed(1)}%"></div></td></tr>`).join('')+'</table></div>';
+  h+=`<div><h3 style="margin-top:0">${esc(t.blTop)}</h3><table class="mini"><tr><th>${esc(t.hMessage)}</th><th>${esc(t.hCycle)}</th><th>${esc(t.hBitsMax)}</th><th>${esc(t.hLoadMax)}</th></tr>`
+    +bl.rows.slice(0,10).map(r=>`<tr><td>${esc(r.m.name)}${r.src==='evt'?' *':''}</td><td class="n">${r.cyc}</td><td class="n">${r.bitsMax}</td><td class="n">${r.lmax.toFixed(2)}</td></tr>`).join('')+'</table></div></div>';
+  h+=`<div class="blnote">${esc(t.blMethod)}</div>`;
+  out.innerHTML=h;
+}
+['bNom','bData','bEvt','bThr'].forEach(id=>$('#'+id).addEventListener('input',()=>{if(st.dbs.length)renderBus();}));
+$('#bBrs').addEventListener('change',()=>{if(st.dbs.length)renderBus();});
+
+function applyLang(){
+  const t=L();document.documentElement.lang=st.lang;
+  document.querySelectorAll('[data-i]').forEach(e=>{e.textContent=t[e.dataset.i];});
+  document.querySelectorAll('[data-ip]').forEach(e=>{e.placeholder=t[e.dataset.ip];});
+  document.querySelectorAll('#lang button').forEach(b=>b.classList.toggle('on',b.dataset.l===st.lang));
+  if(st.dbs.length)$('#drop b').textContent=t.dropMore;
+}
+function renderAll(){
+  applyLang();
+  const has=st.dbs.length>0;
+  $('#work').hidden=!has;$('#drop').classList.toggle('compact',has);
+  if(!has)return;
+  $('#fsel').innerHTML=st.dbs.map((d,i)=>`<option value="${i}"${i===st.active?' selected':''}>${esc(d.fileName)}</option>`).join('');
+  const cur=$('#nsel').value;
+  $('#nsel').innerHTML=`<option value="">${esc(L().allNodes)}</option>`+db().nodes.map(n=>`<option${n===cur?' selected':''}>${esc(n)}</option>`).join('');
+  $('#msel').disabled=!$('#nsel').value;
+  $('#bBatchF').disabled=st.dbs.length<2;
+  renderSheets();renderStats();renderWarn();renderBus();renderList();renderDetail();
+}
+function renderSheets(){
+  const t=L();
+  $('#sheets').innerHTML=SHEET_KEYS.map(k=>`<label class="chk${st.sheets.has(k)?' on':''}"><input type="checkbox" data-k="${k}"${st.sheets.has(k)?' checked':''}>${esc(t['s_'+k])}</label>`).join('');
+}
+function scopeMsgs(){return scoped(db(),$('#nsel').value,$('#msel').value);}
+function renderStats(){
+  const t=L(),d=db(),ms=scopeMsgs(),sg=ms.reduce((a,m)=>a+m.signals.length,0);
+  const c=(v,l,w)=>`<div class="card${w?' w':''}"><b>${v}</b><span>${esc(l)}</span></div>`;
+  $('#stats').innerHTML=c(ms.length,t.stMsg)+c(sg,t.stSig)+c(nodesIn(d,ms).length,t.stNode)+c(ms.filter(m=>m.fd).length,t.stFd)
+    +c(ms.filter(m=>m.ext).length,t.stExt)+c(ms.reduce((a,m)=>a+m.signals.filter(s=>s.values).length,0),t.stVal)+c(d.warnings.length,t.stWarn,d.warnings.length>0);
+}
+function renderWarn(){
+  const t=L(),w=db().warnings,box=$('#warnBox');
+  box.hidden=!w.length;if(!w.length)return;
+  box.querySelector('summary').textContent=w.length+' '+t.warns;
+  box.querySelector('ul').innerHTML=w.slice(0,500).map(x=>`<li>${esc(x.t)} — ${esc(t[x.k]||x.k)}</li>`).join('');
+}
+function renderList(){
+  const t=L(),q=$('#q').value.trim().toLowerCase(),node=$('#nsel').value;
+  let ms=scopeMsgs();
+  if(q)ms=ms.filter(m=>m.name.toLowerCase().includes(q)||hex(m).toLowerCase().includes(q)||String(m.id)===q||m.signals.some(s=>s.name.toLowerCase().includes(q)));
+  if(!ms.length){$('#mlist').innerHTML=`<div class="empty" style="height:120px">${esc(t.none)}</div>`;return;}
+  $('#mlist').innerHTML=ms.map(m=>{
+    const k=db().messages.indexOf(m);
+    const tags=(m.fd?'<span class="tag fd">FD</span>':'')+(m.ext?'<span class="tag ex">EXT</span>':'')
+      +(node&&isTx(m,node)?'<span class="tag tx">TX</span>':'')+(node&&isRx(m,node)?'<span class="tag rx">RX</span>':'');
+    return `<div class="mi${st.sel===k?' sel':''}" data-k="${k}"><div class="mn">${esc(m.name)}</div><div class="mm"><span class="id">${hex(m)}</span><span>${m.len} B</span><span>${esc(txNodes(m).join(', ')||'—')}</span>${tags}</div></div>`;
+  }).join('');
+}
+const pal=i=>'#'+PALETTE[i%PALETTE.length];
+function renderDetail(){
+  const t=L(),d=db(),el=$('#detail');
+  const m=st.sel!=null?d.messages[st.sel]:null;
+  if(!m){el.innerHTML=`<div class="empty">${esc(t.pick)}</div>`;return;}
+  const chip=(k,v)=>`<span class="chip"><i>${esc(k)}</i><b>${esc(v===''?'—':v)}</b></span>`;
+  let h=`<div class="dh"><h2>${esc(m.name)}</h2></div><div class="chips">${chip('ID',hex(m)+' ('+m.id+')')}${chip(t.hIdFmt,m.ext?t.ext:t.std)}${chip(t.frame,m.fd?'CAN FD':'CAN')}${chip(t.len,m.len+' B')}${chip(t.txN,txNodes(m).join(', '))}${chip(t.cycle,attrVal(d,m,'GenMsgCycleTime'))}${chip(t.sendType,attrVal(d,m,'GenMsgSendType'))}</div>`;
+  if(m.comment)h+=`<p class="cmt">${esc(m.comment)}</p>`;
+  // bitmap
+  const own={};m.signals.forEach(s=>s.bits.forEach((b,k)=>{(own[b]??=[]).push({s,msb:k===0,lsb:k===s.bits.length-1});}));
+  h+=`<h3>${esc(t.bitmapT)}</h3><div class="bmwrap"><table class="bm${st.selSig!=null?' focus':''}"><tr><th>${esc(t.byte)}</th>${[7,6,5,4,3,2,1,0].map(b=>`<th>${b}</th>`).join('')}</tr>`;
+  for(let B=0;B<m.len;B++){
+    h+=`<tr><td class="bn">${B}</td>`;
+    for(const b of [7,6,5,4,3,2,1,0]){
+      const o=own[B*8+b];
+      if(!o){h+='<td></td>';continue;}
+      const x=o[o.length-1],ov=o.length>1&&o.some(p=>p.s.muxVal==null)||(o.length>1&&new Set(o.map(p=>p.s.muxVal)).size<o.length);
+      const sel=o.some(p=>p.s.idx===st.selSig);
+      h+=`<td data-s="${x.s.idx}" class="${x.msb?'msb':''}${x.lsb?' lsb':''}${ov?' ov':''}${sel?' hi':''}" style="background:${pal(x.s.idx)}" title="${esc(o.map(p=>p.s.name).join(' / ')+' · bit '+(B*8+b))}">${x.msb?esc(x.s.name):''}</td>`;
+    }
+    h+='</tr>';
+  }
+  h+=`</table></div><div class="legend">${esc(t.legend)}</div>`;
+  // signals
+  h+=`<h3>${esc(t.sigsT)} (${m.signals.length})</h3><div class="tw"><table class="st"><tr><th>${esc(t.hSignal)}</th><th>${esc(t.hStart)}</th><th>${esc(t.hLength)}</th><th>${esc(t.hOrder)}</th><th>${esc(t.hValType)}</th><th>${esc(t.hFactor)}</th><th>${esc(t.hOffset)}</th><th>${esc(t.hMin)}</th><th>${esc(t.hMax)}</th><th>${esc(t.hUnit)}</th><th>${esc(t.hInitPhys)}</th><th>${esc(t.hMux)}</th><th>${esc(t.hRx)}</th><th>${esc(t.hValues)}</th></tr>`;
+  m.signals.forEach(s=>{
+    const vals=s.values?s.values.map(([v,dd])=>v+': '+dd):[];
+    h+=`<tr data-s="${s.idx}" class="${st.selSig===s.idx?'hi':''}" title="${esc(s.comment)}"><td><span class="dot" style="background:${pal(s.idx)}"></span>${esc(s.name)}</td><td class="n">${s.start}</td><td class="n">${s.len}</td><td>${s.intel?'Intel':'Motorola'}</td><td>${esc(valTypeTxt(s,t))}</td><td class="n">${esc(s.factor)}</td><td class="n">${esc(s.offset)}</td><td class="n">${esc(s.min)}</td><td class="n">${esc(s.max)}</td><td>${esc(s.unit)}</td><td class="n">${esc(initPhys(d,s))}</td><td>${esc(muxTxt(s,t))}</td><td>${esc(s.rx.join(', '))}</td><td class="vals" title="${esc(vals.join('\n'))}">${esc(vals.slice(0,4).join('\n'))}${vals.length>4?'\n…(+'+(vals.length-4)+')':''}</td></tr>`;
+  });
+  h+='</table></div>';
+  el.innerHTML=h;
+}
+
+/* ---------- export ---------- */
+function stamp(){const d=new Date(),p=n=>String(n).padStart(2,'0');return d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+'_'+p(d.getHours())+p(d.getMinutes());}
+const safe=s=>String(s).replace(/[^\w.\-]+/g,'_');
+const base=n=>safe(n.replace(/\.dbc$/i,''));
+function download(bytes,name,type){
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([bytes],{type}));a.download=name;
+  document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},2000);
+}
+const XT='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+function wb(d,node,mode){return buildXlsx(buildWorkbook(d,{node,mode,sheets:st.sheets,bus:busOpts()},L()));}
+function guard(fn){try{fn();}catch(e){console.error(e);toast(L().err+': '+e.message,true);}}
+$('#bExp').onclick=()=>guard(()=>{
+  const d=db(),node=$('#nsel').value,mode=$('#msel').value;
+  const name=base(d.fileName)+'_'+(node?safe(node)+(mode!=='all'?'_'+mode.toUpperCase():''):'ALL')+'_'+stamp()+'.xlsx';
+  download(wb(d,node,mode),name,XT);toast(name+' '+L().done);
+});
+$('#bBatchN').onclick=()=>guard(()=>{
+  const d=db(),mode=$('#msel').value;
+  const files=d.nodes.filter(n=>scoped(d,n,mode).length).map(n=>({name:base(d.fileName)+'_'+safe(n)+(mode!=='all'?'_'+mode.toUpperCase():'')+'.xlsx',data:wb(d,n,mode)}));
+  if(!files.length){toast(L().noNodes,true);return;}
+  const name=base(d.fileName)+'_per_node_'+stamp()+'.zip';
+  download(zip(files),name,'application/zip');toast(files.length+' × xlsx → '+name);
+});
+$('#bBatchF').onclick=()=>guard(()=>{
+  const files=st.dbs.map(d=>({name:base(d.fileName)+'.xlsx',data:wb(d,'','all')}));
+  const name='DBC_export_'+stamp()+'.zip';
+  download(zip(files),name,'application/zip');toast(files.length+' × xlsx → '+name);
+});
+
+/* ---------- events ---------- */
+let tt;function toast(m,err){const e=$('#toast');e.textContent=m;e.className='on'+(err?' err':'');clearTimeout(tt);tt=setTimeout(()=>e.className=err?'err':'',3200);}
+$('#fi').onchange=e=>{loadFiles(e.target.files);e.target.value='';};
+const dz=$('#drop');
+['dragenter','dragover'].forEach(ev=>document.addEventListener(ev,e=>{e.preventDefault();dz.classList.add('over');}));
+['dragleave','drop'].forEach(ev=>document.addEventListener(ev,e=>{e.preventDefault();if(ev==='drop'||!e.relatedTarget)dz.classList.remove('over');}));
+document.addEventListener('drop',e=>{if(e.dataTransfer&&e.dataTransfer.files.length)loadFiles(e.dataTransfer.files);});
+$('#enc').onchange=()=>{if(st.files.length)reparse();};
+$('#lang').onclick=e=>{const l=e.target.dataset&&e.target.dataset.l;if(!l)return;st.lang=l;try{localStorage.setItem('dbc2xl.lang',l);}catch(_){}renderAll();};
+$('#fsel').onchange=e=>{st.active=+e.target.value;st.sel=null;st.selSig=null;$('#nsel').value='';setRates();renderAll();};
+$('#nsel').onchange=()=>{$('#msel').disabled=!$('#nsel').value;if(!$('#nsel').value)$('#msel').value='all';renderStats();renderList();};
+$('#msel').onchange=()=>{renderStats();renderList();};
+$('#q').oninput=renderList;
+$('#sheets').onchange=e=>{const k=e.target.dataset.k;if(!k)return;e.target.checked?st.sheets.add(k):st.sheets.delete(k);e.target.parentElement.classList.toggle('on',e.target.checked);$('#bExp').disabled=$('#bBatchN').disabled=!st.sheets.size;};
+$('#mlist').onclick=e=>{const it=e.target.closest('.mi');if(!it)return;st.sel=+it.dataset.k;st.selSig=null;
+  document.querySelectorAll('.mi.sel').forEach(x=>x.classList.remove('sel'));it.classList.add('sel');renderDetail();};
+$('#detail').onclick=e=>{const r=e.target.closest('[data-s]');if(!r)return;const k=+r.dataset.s;st.selSig=st.selSig===k?null:k;renderDetail();};
+applyLang();
+</script>
+</body>
+</html>
